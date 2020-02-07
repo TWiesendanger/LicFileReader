@@ -1,5 +1,3 @@
-
-@"
 2D0=PDS 2D PID
 2D1=PDS 2D
 2D2=PDS 2D Graphics Only
@@ -304,8 +302,8 @@
 74500VLTC_2010_0F=Autodesk Vault Collaboration 2010
 74600VLTC_F=Autodesk 360 Vault Collaboration Package
 74700VLTWG_2010_0F=Autodesk Vault Workgroup 2010
-74800VLTWG_F=Autodesk 360 Vault Workgroup Package
-74800VLTWG_T_F=Autodesk Vault Workgroup Package Term
+74800VLTWG_F = Autodesk 360 Vault Workgroup Package
+74800VLTWG_T_F = Autodesk Vault Workgroup Package Term
 74900RVTMPJ_F=Autodesk Revit MEP Package
 75100TOXIK_2010_0F=Autodesk Toxik 2010
 75200RSA_2010_0F=Autodesk Robot Structural Analysis 2010
@@ -2384,4 +2382,3 @@ SSK=SmartSketch
 STD-C=Tekla : Steel detailing
 STDL-C=Tekla : Primary
 VIE-C=Tekla : Project Viewer
-"@ | ConvertFrom-StringData

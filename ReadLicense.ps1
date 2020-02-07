@@ -36,9 +36,9 @@ Write-Host $Path
 $MainformIcon = $Path + "\res\mum.png"
 
 
-#===========================================================================
-#Functions
-#===========================================================================
+##############################################################
+#                Functions                       #
+##############################################################
 
 
 Function CreateIncrement {
@@ -160,28 +160,6 @@ $WPFSource.AllowDrop = $True
 #                MANAGE EVENT ON PANEL                       #
 ##############################################################
 
-$WPFTest.Add_Click( {
-        $NewButton2 = New-Object System.Windows.Controls.Label
-        $newButton2.Name = "SecondLabel"
-
-        $row1 = new-object system.windows.controls.rowdefinition
-        $text1 = New-Object System.Windows.Controls.TextBlock
-        $text1.Text = "TEST"
-
-        $row1.height = "Auto"
-
-        $WPFDataGrid | Get-Member 
-
-        $WPFDataGrid.RowDefinitions.Add($row1)
-        # $WPFDataGrid.SetRow($text1,1)
-        # $WPFDataGrid.SetColumn($text1,0)
-
-        #$WPFDataGrid.Rows[1].Cells[1].Value ="Test"
-
-        $WPFDataGrid.SetRow($text1, 1)
-        $WPFDataGrid.SetColumn($text1, 0)
-    })
-
 
 $WPFSource.Add_PreviewDragOver( {
         [System.Object]$script:sender = $args[0]
@@ -240,37 +218,3 @@ $WPFSource.Add_Drop( {
 #$Form.Icon = $MainformIcon
 
 $Form.ShowDialog() | out-null
-
-
-
-
-
-
-# #Get Increments / Feature Code / Date (Use Increment Block to limit search) / Create Function for this later
-# # $Increment =  $IncrementBlock | Where-Object {$_ -like 'INCREMENT*'}
-# # $IncrementParts = $Increment.Split(" ")
-# # Write-Host "---------------------"
-# # Write-Host $IncrementParts[0]
-# # Write-Host $IncrementParts[1]
-# # Write-Host $IncrementParts[2]
-# # Write-Host $IncrementParts[3]
-# # Write-Host $IncrementParts[4]
-
-
-
-# $FeatureCode = $IncrementParts[1]
-# $Date = $IncrementParts[4]
-# Write-Host $Date
-# Write-Host $FeatureCode
-
-# #Get Product Name
-# $Product = $Hashtable.Get_Item($FeatureCode)
-# Write-Host $Product
-
-# #Get Issue Date and Serial
-# $IssuedLine = Get-Content $LicenseFile | Where-Object {$_ -like '*ISSUED*'}
-# Write-Host $IssuedLine
-# $IssuedLineParts = $IssuedLine.Split(" ")
-# Write-Host $IssuedLineParts[0]
-# Write-Host $IssuedLineParts[1]
-# Write-Host $IssuedLineParts[2]
