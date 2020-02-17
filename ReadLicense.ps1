@@ -21,22 +21,18 @@ else {
     $Path = Split-Path -Parent -Path ([Environment]::GetCommandLineArgs()[0])
 }
 
-Write-Host $Path
+#Write-Host $Path
 $MainformIcon = $Path + "\res\mum.png"
 
 
 ##############################################################
 #                Functions                       #
 ##############################################################
-Function Colorize {
-    foreach ($item in $WPFDatagridPack.Items) {
-
-        #if ($item.cells[0].value -eq $null) { }
-        #else {
-        #   $row.Cells[0].Style.BackColor = 'Red'
-        #}     
-    }
+Function ClearFunction {
+    $WPFDataGridPack.Items.Clear()
+    $WPFDataGridInc.Items.Clear()   
 }
+
 Function CheckPackage {
 
     #===========================================================================
@@ -119,7 +115,7 @@ Function CheckPackage {
         #Create Custom Object
         $PackageHeader = [pscustomobject]@{Seats = $varSeat; Feature = $varFeature; FeatureCode = $varFeatureCode; SerialNumber = $varSerialNumber; IssueDate = $varIssueDate; Expiration = $varExpiration }
         $WPFDatagridPack.AddChild($PackageHeader)
-        #$WPFDatagridPack.Rows[0].Cells[0].Style.BackColor = 'Red'
+
         #Log
         #"Package" | Out-File 'Logfile.txt' -Append
         #$PackageHeader | Out-File 'Logfile.txt' -Append
@@ -142,7 +138,6 @@ Function CheckPackage {
             #"Product" | Out-File 'Logfile.txt' -Append
             #$IncrementLine | Out-File 'Logfile.txt' -Append    
         }
-        #Write-Host $PackageArray
     }
 
 
@@ -178,7 +173,6 @@ Function ReadSource {
         #$lineNumber++
     
         if ($line | Where-Object { $_ -like $string }) {
-            Write-Host "Linenumber" + $lineNumber
             if ($line | Where-Object { $_ -like "*SIGN*" }) {
                 $IncrementArray += $line #still add this last found line
                 CheckPackage
@@ -201,6 +195,50 @@ Function Fillout {
     $WPFMACAdressValue.Text = $MACAdress
 }
 
+Function SizeCalc {
+
+    $TitelbarSize = 25 + 10
+    $SourceSize = 80 + 10
+    $ParsedLicenseFileSize = 32
+    $LicenseTypeSize = 32
+    $ComputerSize = 32
+    $MACSize = 32 + 10
+    $IncrementMatchedTextSize = 26 + 10
+    $HeaderIncrementGridSize = 27 + 35
+    $PackageIncrementsMatchedTextSize = 26 + 10
+    $HeaderPackageGridSize = 27 + 10
+    $ResetButtonSize = 27 + 5
+
+    #Get MainMonitorSize
+    $MHeight = [System.Windows.Forms.SystemInformation]::PrimaryMonitorSize | Select-Object Height
+    $MHeight -match '\d+'
+    $MHeight = $Matches[0]
+
+    $FixedSize = $TitelbarSize + $SourceSize + $ParsedLicenseFileSize + $LicenseTypeSize + $ComputerSize + $MACSize + 
+    $IncrementMatchedTextSize + $HeaderIncrementGridSize + $PackageIncrementsMatchedTextSize + $HeaderPackageGridSize + $ResetButtonSize
+    $Marginspace = 150
+
+    $RemainsSize = $MHeight - $FixedSize - $Marginspace
+
+    if ($WPFDataGridInc.Items.Count -eq 0) {
+        #If Increment Grid is empty use all remaining space for Package Grid
+        $WPFDataGridPack.MaxHeight = $RemainsSize
+    }
+    else {
+        #$CountItems = 100 / ($WPFDataGridInc.Items.Count + $WPFDataGridPack.Items.Count)
+
+        $WPFDataGridInc.MaxHeight = $WPFDataGridInc.Items.Count * ($WPFDataGridInc.ActualHeight + 5)
+        $WPFDataGridPack.MaxHeight = $RemainsSize - $WPFDataGridInc.MaxHeight
+        #$WPFDataGridPack.MaxHeight = $RemainsSize * (($WPFDataGridPack.Items.Count * $CountItems) / 100)
+        #$WPFDatagridPack.MinHeight = 100
+        #$WPFDataGridInc.MaxHeight = $RemainsSize * (($WPFDataGridInc.Items.Count * $CountItems) / 100)
+        #$WPFDataGridInc.MinHeight = 100
+    }
+ 
+    $WPFDataGridPackHeight = $WPFDataGridPack.Items.Count * $WPFDataGridPack.ActualHeight
+    $WPFDataGridIncHeight = $WPFDataGridInc.Items.Count * $WPFDataGridInc.ActualHeight
+
+}   
 
 #region XAML Reader
 # where is the XAML file?
@@ -255,8 +293,6 @@ $WPFSource.Add_PreviewDragOver( {
             $WPFTextBlockDrop.Text = "Only 1 File allowed!"
         }
         else {
-            #Write-Host $Files[0]
-            #Convert System.String to String
             $FileString = "$Files"
 
             if ($FileString.Substring($FileString.Length - 4) -eq ".lic") {
@@ -276,7 +312,7 @@ $WPFSource.Add_DragLeave( {
     })
 
 $WPFSource.Add_Drop( {
-
+        ClearFunction #Clear Grid
         [System.Object]$script:sender = $args[0]
         [System.Windows.DragEventArgs]$e = $args[1]
     
@@ -284,14 +320,32 @@ $WPFSource.Add_Drop( {
 
             $Script:Files = $e.Data.GetData([System.Windows.DataFormats]::FileDrop)
             $FileName = [System.IO.Path]::GetFileName($Files)
-            Write-Host $FileName
             $WPFTextBlockDrop.Text = $FileName
             ReadSource
             Fillout
-            Colorize
+            SizeCalc
         }
     })
 
+$WPFReset.add_Click( {
+        ClearFunction
+    })
+
+$WPFParsedLicenseFileValue.add_MouseRightButtonUp( {
+        $WPFParsedLicenseFileValue.Text | Set-Clipboard    
+    })
+
+$WPFLicenseTypeValue.add_MouseRightButtonUp( {
+        $WPFLicenseTypeValue.Text | Set-Clipboard    
+    })
+
+$WPFComputerHostNameValue.add_MouseRightButtonUp( {
+        $WPFComputerHostNameValue.Text | Set-Clipboard    
+    })
+
+$WPFMACAdressValue.add_MouseRightButtonUp( {
+        $WPFMACAdressValue.Text | Set-Clipboard    
+    })
 
 #===========================================================================
 # Shows the form
