@@ -30,7 +30,12 @@ $MainformIcon = $Path + "\res\mum.png"
 ##############################################################
 Function ClearFunction {
     $WPFDataGridPack.Items.Clear()
-    $WPFDataGridInc.Items.Clear()   
+    $WPFDataGridInc.Items.Clear()
+    $WPFTextbox.Clear()
+    $WPFParsedLicenseFileValue.Text = $null
+    $WPFLicenseTypeValue.Text = $null
+    $WPFComputerHostnameValue.Text = $null
+    $WPFMACAdressValue.Text = $null
 }
 
 Function CheckPackage {
@@ -189,7 +194,7 @@ Function ReadSource {
 }
 
 Function Fillout {
-    $WPFParsedLicenseFileValue.Text = $FileName
+    $WPFParsedLicenseFileValue.Text = $global:FileName
     $WPFLicenseTypeValue.Text = "Single / Distributed"
     $WPFComputerHostnameValue.Text = $ServerName
     $WPFMACAdressValue.Text = $MACAdress
@@ -319,16 +324,30 @@ $WPFSource.Add_Drop( {
         If ($e.Data.GetDataPresent([System.Windows.DataFormats]::FileDrop)) {
 
             $Script:Files = $e.Data.GetData([System.Windows.DataFormats]::FileDrop)
-            $FileName = [System.IO.Path]::GetFileName($Files)
+            $global:FileName = [System.IO.Path]::GetFileName($Files)
             $WPFTextBlockDrop.Text = $FileName
-            ReadSource
-            Fillout
-            SizeCalc
+
         }
     })
 
 $WPFReset.add_Click( {
+        #Reset Drop File
+        $Script:Files = $null
+        $WPFTextBlockDrop.Text = $null  
         ClearFunction
+    })
+
+$WPFRead.add_Click( {
+        If ($Script:Files -eq $null) {
+
+        }
+        else {
+            ClearFunction
+            ReadSource
+            Fillout
+            SizeCalc
+        }    
+    
     })
 
 $WPFParsedLicenseFileValue.add_MouseRightButtonUp( {
@@ -346,6 +365,8 @@ $WPFComputerHostNameValue.add_MouseRightButtonUp( {
 $WPFMACAdressValue.add_MouseRightButtonUp( {
         $WPFMACAdressValue.Text | Set-Clipboard    
     })
+
+
 
 #===========================================================================
 # Shows the form
