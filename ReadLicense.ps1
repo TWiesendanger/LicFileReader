@@ -10,6 +10,9 @@ Clear-Host
 [System.Reflection.Assembly]::LoadFrom('res\assembly\MahApps.Metro.dll') | out-null
 [System.Reflection.Assembly]::LoadFrom('res\assembly\System.Windows.Interactivity.dll') | out-null
 
+#Load ScreenshotFunction
+. .\Take-ScreenShot.ps1
+
 # When compiled with PS2EXE the variable MyCommand contains no path anymore
 
 if ($MyInvocation.MyCommand.CommandType -eq "ExternalScript") {
@@ -25,8 +28,61 @@ else {
 $MainformIcon = $Path + "\res\mum.png"
 
 
+#Reset globals
+$global:WPFInputString = $null
+$Script:Files = $null
+
 ##############################################################
-#                Functions                       #
+#                Config                                      #
+##############################################################
+function New-Config {
+    #Checks for target directory and creates if non-existent 
+    if (!(Test-Path -Path "$Path\res\settings")) {
+        New-Item -ItemType Directory -Path "$Path\res\settings"
+    }
+	
+    #Setup default preferences	
+    #Creates hash table and .clixml config file
+    $Config = @{
+        'ScreenshotSavePath' = ""
+    }
+    $Config | Export-Clixml -Path "$Path\res\settings\options.config"
+    Import-Config
+} #end function New-Config
+
+function Import-Config {
+    #If a config file exists for the current user in the expected location, it is imported
+    #and values from the config file are placed into global variables
+    if (Test-Path -Path "$Path\res\settings\options.config") {
+        try {
+            #Imports the config file and saves it to variable $Config
+            $Config = Import-Clixml -Path "$Path\res\settings\options.config"
+			
+            #Creates global variables for each config property and sets their values
+            $global:SaveFolder = $Config.ScreenshotSavePath         
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("An error occurred importing your Config file. A new Config file will be generated for you. $_", 'Import Config Error', 'OK', 'Error')
+            New-Config
+        }
+    } #end if config file exists
+    else {
+        New-Config
+    }
+} #end function Import-Config
+
+function Update-Config {
+    #Creates a new Config hash table with the current preferences set by the user
+    $Config = @{
+        'ScreenshotSavePath' = $global:SaveFolder 
+    }
+    #Export the updated config
+    $Config | Export-Clixml -Path "$Path\res\settings\options.config"
+} #end function Update-Config
+
+
+##############################################################
+#                Functions                                   #
 ##############################################################
 Function ClearFunction {
     $WPFDataGridPack.Items.Clear()
@@ -36,7 +92,56 @@ Function ClearFunction {
     $WPFLicenseTypeValue.Text = $null
     $WPFComputerHostnameValue.Text = $null
     $WPFMACAdressValue.Text = $null
+    $global:WPFInputString = $null
+    $global:ServerName = $null
+    $global:MACAdress = $null
+    $Script:Files = $null
+    $global:FileName = $null
 }
+
+function ClearText {
+    $WPFTextbox.Clear()
+    $WPFParsedLicenseFileValue.Text = $null
+    $WPFLicenseTypeValue.Text = $null
+    $WPFComputerHostnameValue.Text = $null
+    $WPFMACAdressValue.Text = $null  
+    $WPFDataGridPack.Items.Clear()
+    $WPFDataGridInc.Items.Clear()
+    $global:WPFInputString = $null
+    $global:ServerName = $null
+    $global:MACAdress = $null
+    $Script:Files = $null
+    $global:FileName = $null
+}
+Function ClearDroppedFile {
+    $Script:Files = $null
+    $WPFTextBlockDrop.Text = $null  
+    $WPFParsedLicenseFileValue.Text = $null
+    $WPFLicenseTypeValue.Text = $null
+    $WPFComputerHostnameValue.Text = $null
+    $WPFMACAdressValue.Text = $null
+    $WPFDataGridPack.Items.Clear()
+    $WPFDataGridInc.Items.Clear()
+    $global:WPFInputString = $null
+    $global:ServerName = $null
+    $global:MACAdress = $null
+    $Script:Files = $null
+    $global:FileName = $null
+}
+
+Function Get-Folder($initialDirectory) {
+    [System.Reflection.Assembly]::LoadWithPartialName("System.windows.forms") | Out-Null
+
+    $foldername = New-Object System.Windows.Forms.FolderBrowserDialog
+    $foldername.Description = "Select a folder"
+    $foldername.rootfolder = "MyComputer"
+
+    if ($foldername.ShowDialog() -eq "OK") {
+        $folder += $foldername.SelectedPath
+    }
+    return $folder
+}
+
 
 Function CheckPackage {
 
@@ -59,8 +164,7 @@ Function CheckPackage {
             if ($line | Where-Object { $_ -like "*SIGN*" }) {
                 $searchVar = "Stop"
             }
-            else {
-                    
+            else {                    
                 $PackageArray += $line
                 $searchVar = "*"
             }
@@ -136,6 +240,12 @@ Function CheckPackage {
         
             $FeatureCodeCleaned = $ComponentParts[$i] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""  #remove backslash ; remove apostrophe; remove all whitespace
             $ProductLine = $FeatureHashtable.$FeatureCodeCleaned
+            If (([string]::IsNullOrEmpty($ProductLine)) ) {
+                Continue
+            }
+            elseif ($ProductLine ) {
+                
+            }
 
             $IncrementLine = [pscustomobject]@{Seats = " " ; Feature = $ProductLine; FeatureCode = $FeatureCodeCleaned } #Seat is set to " " so it triggers style template from xaml
             $WPFDatagridPack.AddChild($IncrementLine)
@@ -144,18 +254,24 @@ Function CheckPackage {
             #$IncrementLine | Out-File 'Logfile.txt' -Append    
         }
     }
-
-
 }
 
 Function ReadSource {
     #Start Lic File
     $LicenseFile = $null
-    $LicenseFile = $Files
-
+    
     #Log
     #$logFile = "StartFile"
     #$logFile | Out-File 'Logfile.txt'
+
+    If ($Script:Files -eq $null) { 
+        $global:WPFInputString | Out-File ($env:TEMP + "\TempLicFile.txt")
+        $LicenseFile = $env:TEMP + "\TempLicFile.txt"
+    }
+    else {
+        $LicenseFile = $Files  
+    }
+    
 
     $string = "*INCREMENT*"
     $lineNumber = 0
@@ -166,6 +282,8 @@ Function ReadSource {
 
     #Define Server and Macadress
     $ServerLine = Get-Content $LicenseFile | Where-Object { $_ -like "*Server*" }
+  
+    
     $ServerLineParts = $ServerLine.Split(" ")
     $global:ServerName = $ServerLineParts[1]
     $global:MACAdress = $ServerLineParts[2]
@@ -194,7 +312,13 @@ Function ReadSource {
 }
 
 Function Fillout {
-    $WPFParsedLicenseFileValue.Text = $global:FileName
+    If ($global:FileName -eq $null) {
+        $WPFParsedLicenseFileValue.Text = "Input String"
+    }
+    else {
+        $WPFParsedLicenseFileValue.Text = $global:FileName
+    }
+    
     $WPFLicenseTypeValue.Text = "Single / Distributed"
     $WPFComputerHostnameValue.Text = $ServerName
     $WPFMACAdressValue.Text = $MACAdress
@@ -251,6 +375,7 @@ $xamlFile = "H:\Dropbox (Data)\TWIVisualStudioProcets\Powershell\LicFileReader\L
 
 $inputXML = Get-Content $xamlFile -Raw
 $inputXML = $inputXML -replace 'mc:Ignorable="d"', '' -replace "x:N", 'N' -replace '^<Win.*', '<Window'
+$inputXML | Out-File "C:\temp\XML.txt"
 [void][System.Reflection.Assembly]::LoadWithPartialName('presentationframework')
 [xml]$XAML = $inputXML
 #Read XAML
@@ -283,6 +408,9 @@ Get-FormVariables
 
 $WPFSource.AllowDrop = $True
 
+#Load Config
+Import-Config
+
 ##############################################################
 #                MANAGE EVENT ON PANEL                       #
 ##############################################################
@@ -300,7 +428,8 @@ $WPFSource.Add_PreviewDragOver( {
         else {
             $FileString = "$Files"
 
-            if ($FileString.Substring($FileString.Length - 4) -eq ".lic") {
+            if ($FileString.Substring($FileString.Length - 4) -eq ".lic" -or $FileString.Substring($FileString.Length - 4) -eq ".txt" ) {
+                #Textfiles or Licfiles allowed
                 $e.Effects = [System.Windows.DragDropEffects]::Move
                 $WPFTextBlockDrop.Text = "Drop File here"
             }
@@ -317,7 +446,7 @@ $WPFSource.Add_DragLeave( {
     })
 
 $WPFSource.Add_Drop( {
-        ClearFunction #Clear Grid
+        ClearText #Clear Grid
         [System.Object]$script:sender = $args[0]
         [System.Windows.DragEventArgs]$e = $args[1]
     
@@ -333,21 +462,28 @@ $WPFSource.Add_Drop( {
 $WPFReset.add_Click( {
         #Reset Drop File
         $Script:Files = $null
-        $WPFTextBlockDrop.Text = $null  
+        $WPFTextBlockDrop.Text = "Drop File here" #Reset text
         ClearFunction
     })
 
 $WPFRead.add_Click( {
+        #Check if there is input. Dropped File or Textinput / else show Warning Dialog
         If ($Script:Files -eq $null) {
-
+            If ($global:WPFInputString -eq "") {
+                $ok = [MahApps.Metro.Controls.Dialogs.MessageDialogStyle]::Affirmative
+                [MahApps.Metro.Controls.Dialogs.DialogManager]::ShowModalMessageExternal($Form, "Read", "Nothing to read. No Input.", $ok)
+            }
+            else {
+                ReadSource
+                Fillout
+                SizeCalc
+            }
         }
         else {
-            ClearFunction
             ReadSource
             Fillout
             SizeCalc
-        }    
-    
+        }
     })
 
 $WPFParsedLicenseFileValue.add_MouseRightButtonUp( {
@@ -366,7 +502,48 @@ $WPFMACAdressValue.add_MouseRightButtonUp( {
         $WPFMACAdressValue.Text | Set-Clipboard    
     })
 
+$WPFTextbox.Add_TextChanged( {
+        ClearDroppedFile #Clear any File that was dropped
+        $WPFTextBlockDrop.Text = "Drop File here" #Reset text
+        $global:WPFInputString = $WPFTextbox.Text
+    })
 
+$WPFSettingsButton.Add_Click( {
+        $WPFFlyOutContent.IsOpen = $true 
+    })
+
+$WPFScreenshot.Add_click( {
+        $SaveFileDialog = New-Object windows.forms.savefiledialog   
+        $SaveFileDialog.initialDirectory = [System.IO.Directory]::GetCurrentDirectory()   
+        $SaveFileDialog.title = "Save File to Disk"   
+        $SaveFileDialog.filter = "PNG|*.png" 
+        $result = $SaveFileDialog.ShowDialog()    
+        $result 
+        if ($result -eq "OK") {    
+            Write-Host "Selected File and Location:"  -ForegroundColor Green  
+            $SaveFileDialog.filename   
+            Take-ScreenShot -activewindow -file $SaveFileDialog.filename  -imagetype png 
+        } 
+        else { Write-Host "File Save Dialog Cancelled!" -ForegroundColor Yellow }  
+    })
+
+$WPFFastScreenshot.Add_Click( {
+        
+        if ($global:SaveFolder -ne $null -or $global:SaveFolder -ne "" ) {
+            $global:SaveString = $global:SaveFolder + "\" + (get-date).ToString("dd-MM-yyyy HH_mm_ss") + ".png"
+            Take-ScreenShot -activewindow -file $global:SaveString -imagetype png
+            Write-Host "Screenshot Saved to $global:SaveFolder" -ForegroundColor Green 
+        }
+        else {
+            $ok = [MahApps.Metro.Controls.Dialogs.MessageDialogStyle]::Affirmative
+            [MahApps.Metro.Controls.Dialogs.DialogManager]::ShowModalMessageExternal($Form, "No save path", "No save path defined. Check settings.", $ok)
+        }
+    })
+
+$WPFOpenPath.Add_Click( {
+        $global:SaveFolder = Get-Folder
+        Update-Config 
+    })
 
 #===========================================================================
 # Shows the form
@@ -375,3 +552,13 @@ $WPFMACAdressValue.add_MouseRightButtonUp( {
 #$Form.Icon = $MainformIcon
 
 $Form.ShowDialog() | out-null
+
+#Delete Temp Files created
+if (Test-Path -Path ($env:TEMP + "\TempLicFile.txt")) {
+    try {
+        Remove-Item -path ($env:TEMP + "\TempLicFile.txt")
+    }
+    catch {
+        Write-Host "Nothing to delete"
+    }
+}
