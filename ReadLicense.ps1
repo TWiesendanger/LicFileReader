@@ -31,6 +31,7 @@ $MainformIcon = $Path + "\res\mum.png"
 #Reset globals
 $global:WPFInputString = $null
 $Script:Files = $null
+$Script:Lineindex = 0
 
 ##############################################################
 #                Config                                      #
@@ -59,7 +60,9 @@ function Import-Config {
             $Config = Import-Clixml -Path "$Path\res\settings\options.config"
 			
             #Creates global variables for each config property and sets their values
-            $global:SaveFolder = $Config.ScreenshotSavePath         
+            $global:SaveFolder = $Config.ScreenshotSavePath
+            #Set path in settings flyout on start
+            $WPFSavePath.Text = $global:SaveFolder         
         }
         catch {
             [System.Windows.Forms.MessageBox]::Show("An error occurred importing your Config file. A new Config file will be generated for you. $_", 'Import Config Error', 'OK', 'Error')
@@ -97,6 +100,21 @@ Function ClearFunction {
     $global:MACAdress = $null
     $Script:Files = $null
     $global:FileName = $null
+    $Script:Lineindex = 0
+}
+
+Function ClearBeforeRead {
+    $WPFDataGridPack.Items.Clear()
+    $WPFDataGridInc.Items.Clear()
+    $WPFParsedLicenseFileValue.Text = $null
+    $WPFLicenseTypeValue.Text = $null
+    $WPFComputerHostnameValue.Text = $null
+    $WPFMACAdressValue.Text = $null
+    $global:WPFInputString = $null
+    $global:ServerName = $null
+    $global:MACAdress = $null
+    $global:FileName = $null
+    $Script:Lineindex = 0
 }
 
 function ClearText {
@@ -181,7 +199,7 @@ Function CheckPackage {
         #Seat Count
         $varSeat = $IncrementParts[5]
         #Product Name (Feature)
-        $varFeature = $FeatureHashtable.($IncrementParts[1])
+        $varFeature = $FeatureHashtableN.($IncrementParts[1])
         #FeatureCode
         $varFeatureCode = $IncrementParts[1]
         #SerialNumber
@@ -209,7 +227,7 @@ Function CheckPackage {
         #Seat Count
         $varSeat = $IncrementParts[5]
         #Product Name (Feature)
-        $varFeature = $FeatureHashtable.($IncrementParts[1])
+        $varFeature = $FeatureHashtableN.($IncrementParts[1])
         #FeatureCode
         $varFeatureCode = $IncrementParts[1]
         #SerialNumber
@@ -222,8 +240,9 @@ Function CheckPackage {
         $varExpiration = $IncrementParts | Select-String -pattern '^\d{2}[\-]\w{3}[\-]\d{4}'
 
         #Create Custom Object
-        $PackageHeader = [pscustomobject]@{Seats = $varSeat; Feature = $varFeature; FeatureCode = $varFeatureCode; SerialNumber = $varSerialNumber; IssueDate = $varIssueDate; Expiration = $varExpiration }
+        $PackageHeader = [pscustomobject]@{Seats = $varSeat; Feature = $varFeature; FeatureCode = $varFeatureCode; SerialNumber = $varSerialNumber; IssueDate = $varIssueDate; Expiration = $varExpiration; Main = "True"; groupNumber = $z ; Expanded = "True"; Lineindex = $Script:Lineindex }
         $WPFDatagridPack.AddChild($PackageHeader)
+        $Script:Lineindex = $Script:Lineindex + 1
 
         #Log
         #"Package" | Out-File 'Logfile.txt' -Append
@@ -233,27 +252,21 @@ Function CheckPackage {
         #===========================================================================
         # Components
         #===========================================================================
-        $Component = $PackageArray -match '\"(.*?)\"' #regex match between " to "
-        $ComponentParts = $Matches[0].Split(" ")
+        $matches = ([regex]'\d{5}\w{3,8}_\d{4}_0F').Matches($PackageArray)
     
-        for ($i = 0; $i -lt $ComponentParts.length; $i++) {
+        for ($i = 0; $i -lt $matches.count; $i++) {
         
-            $FeatureCodeCleaned = $ComponentParts[$i] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""  #remove backslash ; remove apostrophe; remove all whitespace
-            $ProductLine = $FeatureHashtable.$FeatureCodeCleaned
-            If (([string]::IsNullOrEmpty($ProductLine)) ) {
-                Continue
-            }
-            elseif ($ProductLine ) {
-                
-            }
+            $ProductLine = $FeatureHashtableN.$($matches[$i].value)
 
-            $IncrementLine = [pscustomobject]@{Seats = " " ; Feature = $ProductLine; FeatureCode = $FeatureCodeCleaned } #Seat is set to " " so it triggers style template from xaml
+            $IncrementLine = [pscustomobject]@{Seats = " " ; Feature = $ProductLine; FeatureCode = $matches[$i].value; Main = "False"; groupNumber = $z; Lineindex = $Script:Lineindex } #Seat is set to " " so it triggers style template from xaml
             $WPFDatagridPack.AddChild($IncrementLine)
+            $Script:Lineindex = $Script:Lineindex + 1
             #Log
             #"Product" | Out-File 'Logfile.txt' -Append
             #$IncrementLine | Out-File 'Logfile.txt' -Append    
         }
     }
+    $global:z = $z + 1 #for referencing itemrow later (mainrow and secondrows have the same number)
 }
 
 Function ReadSource {
@@ -278,7 +291,7 @@ Function ReadSource {
     $IncrementArray = $null #make sure it is empty
 
     # Get FeatureCodeList
-    $FeatureHashtable = Get-Content -Path "H:\Dropbox (Data)\TWIWork\01_MuM\04_Programmierung\06_Powershell\Tools\LicFileReader\FeatureCodes.txt" | ConvertFrom-StringData
+    $FeatureHashtableN = Get-Content -Path "H:\Dropbox (Data)\TWIProgrammierung\Autodesk\LicFileReader\FeatureCodes.txt" | ConvertFrom-StringData
 
     #Define Server and Macadress
     $ServerLine = Get-Content $LicenseFile | Where-Object { $_ -like "*Server*" }
@@ -287,6 +300,7 @@ Function ReadSource {
     $ServerLineParts = $ServerLine.Split(" ")
     $global:ServerName = $ServerLineParts[1]
     $global:MACAdress = $ServerLineParts[2]
+    $global:z = 1
 
     #===========================================================================
     # Read Line after Line
@@ -353,19 +367,17 @@ Function SizeCalc {
         #If Increment Grid is empty use all remaining space for Package Grid
         $WPFDataGridPack.MaxHeight = $RemainsSize
     }
+    elseif ($WPFDataGridPack.Items.Count -eq 0) {
+        #If Package Grid is empty use all remaining space for Increment Grid
+        $WPFDataGridInc.MaxHeight = $RemainsSize
+    }
     else {
-        #$CountItems = 100 / ($WPFDataGridInc.Items.Count + $WPFDataGridPack.Items.Count)
-
-        $WPFDataGridInc.MaxHeight = $WPFDataGridInc.Items.Count * ($WPFDataGridInc.ActualHeight + 5)
-        $WPFDataGridPack.MaxHeight = $RemainsSize - $WPFDataGridInc.MaxHeight
-        #$WPFDataGridPack.MaxHeight = $RemainsSize * (($WPFDataGridPack.Items.Count * $CountItems) / 100)
-        #$WPFDatagridPack.MinHeight = 100
-        #$WPFDataGridInc.MaxHeight = $RemainsSize * (($WPFDataGridInc.Items.Count * $CountItems) / 100)
-        #$WPFDataGridInc.MinHeight = 100
+        $WPFDataGridInc.MaxHeight = 0.3 * $RemainsSize
+        $WPFDataGridPack.MaxHeight = 0.7 * $RemainsSize
     }
  
-    $WPFDataGridPackHeight = $WPFDataGridPack.Items.Count * $WPFDataGridPack.ActualHeight
-    $WPFDataGridIncHeight = $WPFDataGridInc.Items.Count * $WPFDataGridInc.ActualHeight
+    <#    $WPFDataGridPackHeight = $WPFDataGridPack.Items.Count * $WPFDataGridPack.ActualHeight
+    $WPFDataGridIncHeight = $WPFDataGridInc.Items.Count * $WPFDataGridInc.ActualHeight #>
 
 }   
 
@@ -412,7 +424,7 @@ $WPFSource.AllowDrop = $True
 Import-Config
 
 ##############################################################
-#                MANAGE EVENT ON PANEL                       #
+#                MANAGE EVENTS ON PANEL                      #
 ##############################################################
 
 
@@ -469,17 +481,19 @@ $WPFReset.add_Click( {
 $WPFRead.add_Click( {
         #Check if there is input. Dropped File or Textinput / else show Warning Dialog
         If ($Script:Files -eq $null) {
-            If ($global:WPFInputString -eq "") {
+            If ($global:WPFInputString -eq $null) {
                 $ok = [MahApps.Metro.Controls.Dialogs.MessageDialogStyle]::Affirmative
                 [MahApps.Metro.Controls.Dialogs.DialogManager]::ShowModalMessageExternal($Form, "Read", "Nothing to read. No Input.", $ok)
             }
             else {
+                ClearBeforeRead
                 ReadSource
                 Fillout
                 SizeCalc
             }
         }
         else {
+            ClearBeforeRead
             ReadSource
             Fillout
             SizeCalc
@@ -487,19 +501,23 @@ $WPFRead.add_Click( {
     })
 
 $WPFParsedLicenseFileValue.add_MouseRightButtonUp( {
-        $WPFParsedLicenseFileValue.Text | Set-Clipboard    
+        $WPFParsedLicenseFileValue.Text | Set-Clipboard
+        $WPFInfoDialog.IsOpen = $true  
     })
 
 $WPFLicenseTypeValue.add_MouseRightButtonUp( {
-        $WPFLicenseTypeValue.Text | Set-Clipboard    
+        $WPFLicenseTypeValue.Text | Set-Clipboard
+        $WPFInfoDialog.IsOpen = $true  
     })
 
 $WPFComputerHostNameValue.add_MouseRightButtonUp( {
-        $WPFComputerHostNameValue.Text | Set-Clipboard    
+        $WPFComputerHostNameValue.Text | Set-Clipboard
+        $WPFInfoDialog.IsOpen = $true     
     })
 
 $WPFMACAdressValue.add_MouseRightButtonUp( {
-        $WPFMACAdressValue.Text | Set-Clipboard    
+        $WPFMACAdressValue.Text | Set-Clipboard
+        $WPFInfoDialog.IsOpen = $true     
     })
 
 $WPFTextbox.Add_TextChanged( {
@@ -542,7 +560,54 @@ $WPFFastScreenshot.Add_Click( {
 
 $WPFOpenPath.Add_Click( {
         $global:SaveFolder = Get-Folder
+        $WPFSavePath.Text = $global:SaveFolder
         Update-Config 
+    })
+
+$WPFHelpButton.Add_click( {
+        start "https://github.com/TWiesendanger/LicFileReader"
+    })
+
+$WPFDataGridPack.Add_PreviewMouseDoubleClick( {
+        $items = @()
+        $varName = "ItemArray"
+        if ($WPFDataGridPack.SelectedItem.Main -eq "True") {
+            $gNumber = $WPFDataGridPack.SelectedItem.groupNumber
+            $mainItem = $WPFDataGridPack.SelectedItem
+
+            
+            #Selected Item is Expanded
+            if ($WPFDataGridPack.SelectedItem.Expanded -eq "True") {
+                Foreach ($item in $WPFDataGridPack.Items) {
+                    if ($item.groupNumber -eq $gNumber) {
+                        if ($item -ne $WPFDataGridPack.SelectedItem) {
+                            $items += $item #build array to remove and later add (cant remove here / changes iteration which is not allowed)
+                        }
+                    }
+                }
+                
+                New-Variable -Name ${varName}${gNumber} -Value $items -Scope global -Force
+                    
+                foreach ($item in $items) {
+                    $WPFDataGridPack.Items.Remove($item)
+                }
+                $WPFDataGridPack.SelectedItem.Expanded = "False"
+            }
+            #Selected Item is not Expanded
+            else {
+                $addVar = Get-Variable -Name ${varName}${gNumber}
+                $mainRowIndex = $WPFDataGridPack.Items.IndexOf($mainItem)
+                foreach ($item in $addVar.Value) {
+                    # $WPFDataGridPack.Items.Insert($item.Lineindex, $item)
+                    $WPFDataGridPack.Items.Insert($mainRowIndex + 1, $item)
+
+                }
+                #destroy the array
+                Write-Host $((Get-Variable -Name ${varName}${gNumber})).Name
+                $((Get-Variable -Name ${varName}${gNumber})).Value = $null
+                $WPFDataGridPack.SelectedItem.Expanded = "True"
+            }          
+        }
     })
 
 #===========================================================================
@@ -552,13 +617,11 @@ $WPFOpenPath.Add_Click( {
 #$Form.Icon = $MainformIcon
 
 $Form.ShowDialog() | out-null
-
+#$WPFDataGridPack | Get-Member -Type Event
 #Delete Temp Files created
 if (Test-Path -Path ($env:TEMP + "\TempLicFile.txt")) {
     try {
         Remove-Item -path ($env:TEMP + "\TempLicFile.txt")
     }
-    catch {
-        Write-Host "Nothing to delete"
-    }
+    catch { }
 }

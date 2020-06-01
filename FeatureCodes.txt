@@ -1,4 +1,4 @@
-2D0=PDS 2D PID
+﻿2D0=PDS 2D PID
 2D1=PDS 2D
 2D2=PDS 2D Graphics Only
 2D3=PDS IDM
@@ -392,6 +392,7 @@
 82300STRDET_F=AutoCAD Structural Detailing Package
 82400RVTMPB_2010_0F=Autodesk Revit MEP-B 2010
 82500RVTMPB_F=Autodesk Revit MEP-B Package
+82600ECSCAD_2010_0F=AutoCAD ecscad 2010
 82700NWMMAN_2010_0F=Autodesk Navisworks Manufacturing Manage 2010
 82800NWMMAN_F=Autodesk Navisworks Manufacturing Manage Package
 82900NWMSIM_2010_0F=Autodesk Navisworks Manufacturing Simulate 2010
@@ -735,7 +736,7 @@
 85813PDSS_F=Autodesk Product Design Suite Standard Package
 85814PDSP_F=Autodesk Product Design Suite Premium Package
 85814PDSP_T_F=Autodesk Product Design Suite Premium Package Term
-85815PDSU_F=Autodesk Product Design Suite Ultimate  Package
+85815PDSU_F=Autodesk Product Design Suite Ultimate Package
 85815PDSU_T_F=Autodesk Product Design Suite Ultimate Package Term
 85816MFAA_2012_0F=Autodesk Moldflow Adviser Advanced 2012
 85817MFCD_2012_0F=Autodesk Moldflow CAD Doctor 2012
@@ -1668,7 +1669,7 @@
 86791SFS_2017_0F=Autodesk Structural Fabrication Suite 2017
 86792SBRDES_2017_0F=Autodesk Structural Bridge Design 2017
 86802PLC0000023_2017_0F=Autodesk SimStudio Tools 2016 R2
-86802PLC0000023_F=Autodesk SimStudio Tools 2016 R2 Package
+86802PLC0000023_F=Autodesk SimStudio Tools R3 Package
 86802PLC0000023_T_F=Autodesk SimStudio Tools 2016 R2 Package Term
 86803SHOWCASE_2017_0F=Autodesk Showcase 2017
 86804SCFD_2017_0F=Autodesk CFD 2017
@@ -1751,11 +1752,14 @@
 86856ARCHDESK_2018_0F=Autodesk AutoCAD Architecture 2018
 86857ADSTPR_2018_0F=Autodesk Advance Steel 2018
 86859MFGDEXUTLP_F=Autodesk Manufacturing Data Exchange Utility Premium Package
+86862PWRMMOD_2017_0F=Autodesk PowerMill Modeling 2017
 86859MFGDEXUTLP_T_F=Autodesk Manufacturing Data Exchange Utility Premium Package Term
 86860MFGPPUTL_F=Autodesk Manufacturing Post Processor Utility Package
 86860MFGPPUTL_T_F=Autodesk Manufacturing Post Processor Utility Package Term
+86860MFGPPUTL_2017_0F=Autodesk Manufacturing Post Processor Utility 2017
 86861PMAKER_F=Autodesk PartMaker Package
 86861PMAKER_T_F=Autodesk PartMaker Package Term
+86861PMAKER_2017_0F=Autodesk PartMaker 2017
 86862PWRMMOD_F=Autodesk PowerMill Modeling Package
 86862PWRMMOD_T_F=Autodesk PowerMill Modeling Package Term
 86863ALAUST_2018_0F=Autodesk Alias AutoStudio 2018
@@ -1763,6 +1767,7 @@
 86866MAP_2018_0F=Autodesk AutoCAD Map 3D 2018
 86867UTLDESN_2018_0F=Autodesk AutoCAD Utility Design 2018
 86868MPPUS_F=Autodesk Manufacturing Automation Utility Package
+86868MPPUS_2017_0F=Autodesk Manufacturing Automation Utility 2017
 86868MPPUS_T_F=Autodesk Manufacturing Automation Utility Package Term
 86869MDEUS_F=Autodesk Manufacturing Data Exchange Utility Standard Package
 86869MDEUS_T_F=Autodesk Manufacturing Data Exchange Utility Standard Package Term
@@ -2007,6 +2012,7 @@
 87066INVOEM_2019_0F=Autodesk Inventor OEM 2019
 87067INVNTOR_2019_0F=Autodesk Inventor 2019
 87068INVPROSA_2019_0F=Autodesk Inventor Professional 2019
+87071STNGRAY_2018_0F=Autodesk Stingray
 870723DSMAX_2019_0F=Autodesk 3ds Max 2019
 87077MOBPRO_2019_0F=Autodesk MotionBuilder 2019
 87079ALAUST_2019_0F=Autodesk Alias AutoStudio 2019
