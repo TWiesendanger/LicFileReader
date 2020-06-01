@@ -1752,6 +1752,7 @@
 86856ARCHDESK_2018_0F=Autodesk AutoCAD Architecture 2018
 86857ADSTPR_2018_0F=Autodesk Advance Steel 2018
 86859MFGDEXUTLP_F=Autodesk Manufacturing Data Exchange Utility Premium Package
+86859MFGDEXUTLP_2017_0F=Autodesk Manufacturing Data Exchange Utility Premium 2017
 86862PWRMMOD_2017_0F=Autodesk PowerMill Modeling 2017
 86859MFGDEXUTLP_T_F=Autodesk Manufacturing Data Exchange Utility Premium Package Term
 86860MFGPPUTL_F=Autodesk Manufacturing Post Processor Utility Package
@@ -2012,6 +2013,7 @@
 87066INVOEM_2019_0F=Autodesk Inventor OEM 2019
 87067INVNTOR_2019_0F=Autodesk Inventor 2019
 87068INVPROSA_2019_0F=Autodesk Inventor Professional 2019
+87069DYNSTD_2018_0F=Autodesk Dynamo Studio 2018 (not released)
 87071STNGRAY_2018_0F=Autodesk Stingray
 870723DSMAX_2019_0F=Autodesk 3ds Max 2019
 87077MOBPRO_2019_0F=Autodesk MotionBuilder 2019
