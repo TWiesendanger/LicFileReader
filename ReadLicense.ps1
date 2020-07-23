@@ -407,7 +407,7 @@ Function SizeCalc {
 
 #region XAML Reader
 # where is the XAML file?
-$xamlFile = "H:\Dropbox (Data)\TWIVisualStudioProcets\Powershell\LicFileReader\LicFileReader\LicFileReader\LicenseGrid.xaml"
+$xamlFile = $path + "\res\LicenseGrid.xaml"
 
 $inputXML = Get-Content $xamlFile -Raw
 $inputXML = $inputXML -replace 'mc:Ignorable="d"', '' -replace "x:N", 'N' -replace '^<Win.*', '<Window'
