@@ -13,7 +13,7 @@ So in short what are the pros for this tool?
 
 # Tool does not start!
 
-[Have a look here](https://github.com/TWiesendanger/ADSKLincensingModify#tool-doesnt-start)
+[Have a look here](https://github.com/TWiesendanger/LicFileReader#tool-doesnt-start)
 
 # Table of Contents
 
