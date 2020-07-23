@@ -591,7 +591,7 @@ $WPFOpenPath.Add_Click( {
     })
 
 $WPFHelpButton.Add_click( {
-        start "https://github.com/TWiesendanger/LicFileReader"
+        Start-Process "https://github.com/TWiesendanger/LicFileReader"
     })
 
 $WPFDataGridPack.Add_PreviewMouseDoubleClick( {
