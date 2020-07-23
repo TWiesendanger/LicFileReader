@@ -180,7 +180,8 @@ Function ReadSource {
     }
 
     # Get FeatureCodeList
-    $FeatureHashtableN = Get-Content -Path  $Path + "\res\FeatureCodes.txt" | ConvertFrom-StringData
+    $FeaturecodeFile = $Path + "\res\FeatureCodes.txt"
+    $FeatureHashtableN = Get-Content -Path  $FeaturecodeFile | ConvertFrom-StringData
 
     #Define Server and Macadress
     #regex find for serverlines and then splitting them up / special case if there are 3 servers
