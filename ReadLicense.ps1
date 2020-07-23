@@ -572,9 +572,17 @@ $WPFScreenshot.Add_click( {
 $WPFFastScreenshot.Add_Click( {
         
         if ($global:SaveFolder -ne $null -or $global:SaveFolder -ne "" ) {
-            $global:SaveString = $global:SaveFolder + "\" + (get-date).ToString("dd-MM-yyyy HH_mm_ss") + ".png"
-            Take-ScreenShot -activewindow -file $global:SaveString -imagetype png
-            Write-Host "Screenshot Saved to $global:SaveFolder" -ForegroundColor Green 
+            If (Test-Path $global:SaveFolder) {
+                $global:SaveString = $global:SaveFolder + "\" + (get-date).ToString("dd-MM-yyyy HH_mm_ss") + ".png"
+                Take-ScreenShot -activewindow -file $global:SaveString -imagetype png
+                Write-Host "Screenshot Saved to $global:SaveFolder" -ForegroundColor Green 
+            }
+            else {
+                $ok = [MahApps.Metro.Controls.Dialogs.MessageDialogStyle]::Affirmative
+                [MahApps.Metro.Controls.Dialogs.DialogManager]::ShowModalMessageExternal($Form, "Path not valid", "Save path does not exist. Define a new one from settings.", $ok)
+            }
+
+            
         }
         else {
             $ok = [MahApps.Metro.Controls.Dialogs.MessageDialogStyle]::Affirmative
