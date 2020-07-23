@@ -110,7 +110,6 @@ Function ClearBeforeRead {
     $WPFLicenseTypeValue.Text = $null
     $WPFComputerHostnameValue.Text = $null
     $WPFMACAdressValue.Text = $null
-    $global:WPFInputString = $null
     $global:ServerName = $null
     $global:MACAdress = $null
     $global:LicenseTypeValue = $null
@@ -140,7 +139,6 @@ Function ClearDroppedFile {
     $WPFMACAdressValue.Text = $null
     $WPFDataGridPack.Items.Clear()
     $WPFDataGridInc.Items.Clear()
-    $global:WPFInputString = $null
     $global:ServerName = $null
     $global:MACAdress = $null
     $Script:Files = $null
@@ -173,6 +171,7 @@ Function ReadSource {
         #Text pasted
         $global:WPFInputString | Out-File ($env:TEMP + "\TempLicFile.txt")
         $LicenseFile = $env:TEMP + "\TempLicFile.txt"
+        $LicenseFileString = Get-Content -Path $LicenseFile -Raw | Where-Object { $_.Trim() -ne '' } #dont add empty lines
     }
     else {
         #file dropped
@@ -231,7 +230,6 @@ Function ReadSource {
             $IncrementsPackage += $item
         }
     }
-
     CheckPackage
     CheckIncrement
 }
