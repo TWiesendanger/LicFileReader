@@ -11,7 +11,7 @@ Clear-Host
 [System.Reflection.Assembly]::LoadFrom('res\assembly\System.Windows.Interactivity.dll') | out-null
 
 #Load ScreenshotFunction
-. .\Take-ScreenShot.ps1
+. .\res\Take-ScreenShot.ps1
 
 # When compiled with PS2EXE the variable MyCommand contains no path anymore
 
@@ -180,7 +180,7 @@ Function ReadSource {
     }
 
     # Get FeatureCodeList
-    $FeatureHashtableN = Get-Content -Path "H:\Dropbox (Data)\TWIProgrammierung\Autodesk\LicFileReader\FeatureCodes.txt" | ConvertFrom-StringData
+    $FeatureHashtableN = Get-Content -Path  $Path + "\res\FeatureCodes.txt" | ConvertFrom-StringData
 
     #Define Server and Macadress
     #regex find for serverlines and then splitting them up / special case if there are 3 servers

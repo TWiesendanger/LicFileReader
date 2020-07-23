@@ -1,5 +1,6 @@
 *.lic
 *.code-workspace
+*.zip
 Testfiles/
 old/
 .vscode/
