@@ -83,7 +83,6 @@ function Update-Config {
     $Config | Export-Clixml -Path "$Path\res\settings\options.config"
 } #end function Update-Config
 
-
 ##############################################################
 #                Functions                                   #
 ##############################################################
@@ -101,6 +100,7 @@ Function ClearFunction {
     $Script:Files = $null
     $global:FileName = $null
     $Script:Lineindex = 0
+    $global:LicenseTypeValue = $null
 }
 
 Function ClearBeforeRead {
@@ -113,7 +113,7 @@ Function ClearBeforeRead {
     $global:WPFInputString = $null
     $global:ServerName = $null
     $global:MACAdress = $null
-    $global:FileName = $null
+    $global:LicenseTypeValue = $null
     $Script:Lineindex = 0
 }
 
@@ -161,47 +161,91 @@ Function Get-Folder($initialDirectory) {
 }
 
 
-Function CheckPackage {
+Function ReadSource {
+    #Start Lic File
+    $LicenseFile = $null
+    $IncrementArray = $null
 
-    #===========================================================================
-    # Clean Up
-    #===========================================================================
-    $IncrementParts = $IncrementArray.Split(" ")
-
-    for ($t = 0; $t -lt $IncrementParts.length; $t++) {
-        $IncrementParts[$t] = $IncrementParts[$t] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""   #remove backslash ; remove apostrophe; remove all whitespace
+    #groupnumber to extend or collapse
+    $global:z = 1
+    
+    If ($Script:Files -eq $null) {
+        #Text pasted
+        $global:WPFInputString | Out-File ($env:TEMP + "\TempLicFile.txt")
+        $LicenseFile = $env:TEMP + "\TempLicFile.txt"
+    }
+    else {
+        #file dropped
+        $LicenseFile = $Files
+        $LicenseFileString = Get-Content -Path $LicenseFile -Raw | Where-Object { $_.Trim() -ne '' } #dont add empty lines
     }
 
-    #===========================================================================
-    # Search for Package (only if there is no year found in Featurecode)
-    # There is no Package if Increment has year in it. Saves alot of time if it
-    # has not to search for it line by line
-    #===========================================================================
-    $matches = ([regex]'_\d{4}_').Matches($IncrementParts[1])
-    if ($matches.Count -eq 0) {
-        $searchVar = ("Package " + $IncrementParts[1] + "*") #Package + Featurecode from Increment
+    # Get FeatureCodeList
+    $FeatureHashtableN = Get-Content -Path "H:\Dropbox (Data)\TWIProgrammierung\Autodesk\LicFileReader\FeatureCodes.txt" | ConvertFrom-StringData
 
-        foreach ($line in [System.IO.File]::ReadLines($LicenseFile)) {
-            $global:lc = $lc + 1 #gelesene Linien
-            If ($line | Where-Object { $_ -like $searchVar }) {
-                if ($line | Where-Object { $_ -like "*SIGN*" }) {
-                    $searchVar = "Stop"
-                }
-                else {                    
-                    $PackageArray += $line
-                    $searchVar = "*"
-                }
-            }
+    #Define Server and Macadress
+    #regex find for serverlines and then splitting them up / special case if there are 3 servers
+
+    $ServerLine = $LicenseFileString | Select-String -pattern 'SERVER\s\w+\s\w{12}' -AllMatches
+    
+    #decide if singel or redundant
+    if ($ServerLine.Matches.Length -eq 3) {
+        $ServerLineParts0 = $ServerLine.Matches[0].Value.Split(" ")
+        $ServerLineParts1 = $ServerLine.Matches[1].Value.Split(" ")
+        $ServerLineParts2 = $ServerLine.Matches[2].Value.Split(" ")
+
+        $global:ServerName = $ServerLineParts0[1] + "  /  " + $ServerLineParts1[1] + "  /  " + $ServerLineParts2[1] 
+        $global:MACAdress = $ServerLineParts0[2] + "  /  " + $ServerLineParts1[2] + "  /  " + $ServerLineParts2[2]
+        $global:LicenseTypeValue = "Redundant"
+    }
+    else {
+        if ($ServerLine) {
+            $ServerLineParts = $ServerLine.Matches[0].Value.Split(" ")
+            $global:ServerName = $ServerLineParts[1]
+            $global:MACAdress = $ServerLineParts[2]
+            $global:LicenseTypeValue = "Single / Distributed"
+        }
+        else {
+            $global:ServerName = "Not found!"
+            $global:MACAdress = "Not found!"
+            $global:LicenseTypeValue = "Not defined!"
         }
     }
 
-
     #===========================================================================
-    # Package
+    # Build Package and Increment Blocks
     #===========================================================================
-    If ($PackageArray -eq $null) {
-        #No Package found / Must be Single Product
+ 
+    $PackageBlocks = $LicenseFileString | Select-String  -pattern 'PACKAGE.*((.|\n)+?)ISSUED=\d{2}-\w{3}-\d{4}' -AllMatches
+    $IncrementBlocksAll = $LicenseFileString | Select-String  -pattern 'INCREMENT.*((.|\n)+?)SN=\d{3}-\d{8}' -AllMatches
+    $IncrementsSingleProduct = @()
+    $IncrementsPackage = @()
+    
+    #Define if Increment is belonging to Package or is single product
+    Foreach ($item in $IncrementBlocksAll.Matches) {
+        $result = $item.Value.Split(" ")
+        If ($result[1] | Select-String -Pattern '_\d{1,4}_0F') {
+            $IncrementsSingleProduct += $item
+        }
+        else {
+            $IncrementsPackage += $item
+        }
+    }
 
+    CheckPackage
+    CheckIncrement
+}
+
+Function CheckIncrement {
+    $iNr = 0
+    Foreach ($item in $IncrementsSingleProduct) {
+ 
+        $IncrementParts = $IncrementsSingleProduct[$iNr].Value.Split(" ")
+
+        for ($t = 0; $t -lt $IncrementParts.length; $t++) {
+            $IncrementParts[$t] = $IncrementParts[$t] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""   #remove backslash ; remove apostrophe; remove all whitespace
+        }
+        
         #Seat Count
         $varSeat = $IncrementParts[5]
         #Product Name (Feature)
@@ -219,46 +263,74 @@ Function CheckPackage {
         If ($varExpiration -eq $null) {
             $varExpiration = "Permanent" #If there is no regex pattern matching it goes to permanent
         }
-
         #Create Custom Object
-        $SingleHeader = [pscustomobject]@{Seats = $varSeat; Feature = $varFeature; FeatureCode = $varFeatureCode; SerialNumber = $varSerialNumber; IssueDate = $varIssueDate; Expiration = $varExpiration }
-        $WPFDatagridInc.AddChild($SingleHeader)
-        #Log
-        #"Single Product" | Out-File 'Logfile.txt' -Append
-        #$SingleHeader | Out-File 'Logfile.txt' -Append
+        $IncrementHeader = [pscustomobject]@{Seats = $varSeat; Feature = $varFeature; FeatureCode = $varFeatureCode; SerialNumber = $varSerialNumber; IssueDate = $varIssueDate; Expiration = $varExpiration }
+        $WPFDatagridInc.AddChild($IncrementHeader)
+        $iNr = $iNr + 1
     }
-    else {
-        #Build Header Custom Object
+}
+Function CheckPackage {
+    $pNr = 0
+    $MatchingIncrementBlock = @()
+    Foreach ($item in $PackageBlocks.Matches) {
+        $MatchingIncrementBlock = $null
+        $PackageParts = $PackageBlocks.Matches[$pNr].Value.Split(" ")
+
+        for ($t = 0; $t -lt $PackageParts.length; $t++) {
+            $PackageParts[$t] = $PackageParts[$t] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""   #remove backslash ; remove apostrophe; remove all whitespace
+        }
+
+        #create searchterm
+        $IdentificationNr = "*" + $PackageParts[1].ToString() + "*"
+
+        $t = 0
+        #search for matching increment (this is needed to get some info that is not present in package block, like seat number and expiration)
+        Foreach ($item in $IncrementsPackage) {
+            $MatchingIncrementBlock += $IncrementsPackage[$t] | Where-Object { $_ -like $IdentificationNr }
+            if ($MatchingIncrementBlock) {
+                break #if found stop search / saves time
+            }
+            else {
+                $t = $t + 1
+            }
+        }
+
+        $MatchingIncrementBlockParts = $MatchingIncrementBlock.Value.Split(" ")
+
+        for ($t = 0; $t -lt $MatchingIncrementBlockParts.length; $t++) {
+            $MatchingIncrementBlockParts[$t] = $MatchingIncrementBlockParts[$t] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""   #remove backslash ; remove apostrophe; remove all whitespace
+        }
 
         #Seat Count
-        $varSeat = $IncrementParts[5]
+        $varSeat = $MatchingIncrementBlockParts[5]
         #Product Name (Feature)
-        $varFeature = $FeatureHashtableN.($IncrementParts[1])
+        $varFeature = $FeatureHashtableN.($MatchingIncrementBlockParts[1])
         #FeatureCode
-        $varFeatureCode = $IncrementParts[1]
+        $varFeatureCode = $MatchingIncrementBlockParts[1]
         #SerialNumber
-        $varSerialNumber = $IncrementParts | Where-Object { $_ -like "*SN=*" }
+        $varSerialNumber = $MatchingIncrementBlockParts | Where-Object { $_ -like "*SN=*" }
         $varSerialNumber = $varSerialNumber.SubString(3, $varSerialNumber.length - 3)
         #Issue Date
-        $varIssueDate = $IncrementParts | Where-Object { $_ -like "*ISSUED=*" }
+        $varIssueDate = $MatchingIncrementBlockParts | Where-Object { $_ -like "*ISSUED=*" }
         $varIssueDate = $varIssueDate.Substring(7, $varIssueDate.Length - 7)
         #Expiration Date
-        $varExpiration = $IncrementParts | Select-String -pattern '^\d{2}[\-]\w{3}[\-]\d{4}'
+        $varExpiration = $MatchingIncrementBlockParts | Select-String -pattern '^\d{2}[\-]\w{3}[\-]\d{4}'
+        If ($varExpiration -eq $null) {
+            $varExpiration = "Permanent" #If there is no regex pattern matching it goes to permanent
+        }
 
-        #Create Custom Object
+        #===========================================================================
+        # Package Header
+        #===========================================================================
+        #Create Custom Object and add it to the grid
         $PackageHeader = [pscustomobject]@{Seats = $varSeat; Feature = $varFeature; FeatureCode = $varFeatureCode; SerialNumber = $varSerialNumber; IssueDate = $varIssueDate; Expiration = $varExpiration; Main = "True"; groupNumber = $z ; Expanded = "True"; Lineindex = $Script:Lineindex }
         $WPFDatagridPack.AddChild($PackageHeader)
         $Script:Lineindex = $Script:Lineindex + 1
 
-        #Log
-        #"Package" | Out-File 'Logfile.txt' -Append
-        #$PackageHeader | Out-File 'Logfile.txt' -Append
-
-
         #===========================================================================
-        # Components
+        # Components Line (what belongs to the package)
         #===========================================================================
-        $matches = ([regex]'\d{5}\w{3,8}_\d{4}_0F').Matches($PackageArray)
+        $matches = ([regex]'\d{5}\w{3,8}_\d{4}_0F').Matches($PackageParts)
     
         for ($i = 0; $i -lt $matches.count; $i++) {
         
@@ -266,71 +338,17 @@ Function CheckPackage {
 
             $IncrementLine = [pscustomobject]@{Seats = " " ; Feature = $ProductLine; FeatureCode = $matches[$i].value; Main = "False"; groupNumber = $z; Lineindex = $Script:Lineindex } #Seat is set to " " so it triggers style template from xaml
             $WPFDatagridPack.AddChild($IncrementLine)
-            $Script:Lineindex = $Script:Lineindex + 1
-            #Log
-            #"Product" | Out-File 'Logfile.txt' -Append
-            #$IncrementLine | Out-File 'Logfile.txt' -Append    
+            $Script:Lineindex = $Script:Lineindex + 1  
         }
+        
+        #next Package
+        $pNr = $pNr + 1
+        $global:z = $z + 1 #for referencing itemrow later (mainrow and secondrows have the same number)
     }
-    $global:z = $z + 1 #for referencing itemrow later (mainrow and secondrows have the same number)
+ 
+
 }
 
-Function ReadSource {
-    #Start Lic File
-    $LicenseFile = $null
-    
-    #Log
-    #$logFile = "StartFile"
-    #$logFile | Out-File 'Logfile.txt'
-
-    If ($Script:Files -eq $null) { 
-        $global:WPFInputString | Out-File ($env:TEMP + "\TempLicFile.txt")
-        $LicenseFile = $env:TEMP + "\TempLicFile.txt"
-    }
-    else {
-        $LicenseFile = $Files  
-    }
-    
-
-    $string = "*INCREMENT*"
-    $lineNumber = 0
-    $IncrementArray = $null #make sure it is empty
-
-    # Get FeatureCodeList
-    $FeatureHashtableN = Get-Content -Path "H:\Dropbox (Data)\TWIProgrammierung\Autodesk\LicFileReader\FeatureCodes.txt" | ConvertFrom-StringData
-
-    #Define Server and Macadress
-    $global:performance1 = Measure-Command -Expression { $ServerLine = Get-Content $LicenseFile | Where-Object { $_ -like "*Server*" } }
-  
-    
-    $ServerLineParts = $ServerLine.Split(" ")
-    $global:ServerName = $ServerLineParts[1]
-    $global:MACAdress = $ServerLineParts[2]
-    $global:z = 1
-
-    #===========================================================================
-    # Read Line after Line
-    #===========================================================================
-
-    $global:performance2 = Measure-Command -Expression { foreach ($line in [System.IO.File]::ReadLines($LicenseFile)) {   
-            #$lineNumber++
-    
-            if ($line | Where-Object { $_ -like $string }) {
-                if ($line | Where-Object { $_ -like "*SIGN*" }) {
-                    $IncrementArray += $line #still add this last found line
-                    CheckPackage
-                    $string = "*INCREMENT*"
-                    $IncrementArray = $null
-                }
-                else {
-                
-                    $IncrementArray += $line
-                    $string = "*"
-                }
-            }        
-        }
-    }
-}
 
 Function Fillout {
     If ($global:FileName -eq $null) {
@@ -340,7 +358,8 @@ Function Fillout {
         $WPFParsedLicenseFileValue.Text = $global:FileName
     }
     
-    $WPFLicenseTypeValue.Text = "Single / Distributed"
+
+    $WPFLicenseTypeValue.Text = $LicenseTypeValue
     $WPFComputerHostnameValue.Text = $ServerName
     $WPFMACAdressValue.Text = $MACAdress
 }

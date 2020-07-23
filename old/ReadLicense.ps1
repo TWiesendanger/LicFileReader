@@ -173,18 +173,24 @@ Function CheckPackage {
     }
 
     #===========================================================================
-    # Search for Package
+    # Search for Package (only if there is no year found in Featurecode)
+    # There is no Package if Increment has year in it. Saves alot of time if it
+    # has not to search for it line by line
     #===========================================================================
-    $searchVar = ("Package " + $IncrementParts[1] + "*") #Package + Featurecode from Increment
+    $matches = ([regex]'_\d{4}_').Matches($IncrementParts[1])
+    if ($matches.Count -eq 0) {
+        $searchVar = ("Package " + $IncrementParts[1] + "*") #Package + Featurecode from Increment
 
-    foreach ($line in [System.IO.File]::ReadLines($LicenseFile)) { 
-        If ($line | Where-Object { $_ -like $searchVar }) {
-            if ($line | Where-Object { $_ -like "*SIGN*" }) {
-                $searchVar = "Stop"
-            }
-            else {                    
-                $PackageArray += $line
-                $searchVar = "*"
+        foreach ($line in [System.IO.File]::ReadLines($LicenseFile)) {
+            $global:lc = $lc + 1 #gelesene Linien
+            If ($line | Where-Object { $_ -like $searchVar }) {
+                if ($line | Where-Object { $_ -like "*SIGN*" }) {
+                    $searchVar = "Stop"
+                }
+                else {                    
+                    $PackageArray += $line
+                    $searchVar = "*"
+                }
             }
         }
     }
@@ -306,7 +312,7 @@ Function ReadSource {
     # Read Line after Line
     #===========================================================================
 
-    $global:performance2 = Measure-Command -Expression { foreach ($line in [System.IO.File]::ReadLines($LicenseFile)) {   
+    foreach ($line in [System.IO.File]::ReadLines($LicenseFile)) {   
             #$lineNumber++
     
             if ($line | Where-Object { $_ -like $string }) {
