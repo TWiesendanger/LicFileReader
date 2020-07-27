@@ -186,7 +186,7 @@ Function ReadSource {
     #Define Server and Macadress
     #regex find for serverlines and then splitting them up / special case if there are 3 servers
 
-    $ServerLine = $LicenseFileString | Select-String -pattern 'SERVER\s\w+\s\w{12}' -AllMatches
+    $ServerLine = $LicenseFileString | Select-String -pattern 'SERVER\s[a-zA-Z0-9._-]+\s\w{12}' -AllMatches
     
     #decide if singel or redundant
     if ($ServerLine.Matches.Length -eq 3) {
