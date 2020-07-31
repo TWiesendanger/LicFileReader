@@ -1,6 +1,7 @@
 *.lic
 *.code-workspace
 *.zip
+*.xlsx
 Buildscript.ps1
 Testfiles/
 old/
