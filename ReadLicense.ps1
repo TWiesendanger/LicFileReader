@@ -268,86 +268,107 @@ Function CheckIncrement {
         $iNr = $iNr + 1
     }
 }
+
 Function CheckPackage {
     $pNr = 0
     $MatchingIncrementBlock = @()
-    Foreach ($item in $PackageBlocks.Matches) {
-        $MatchingIncrementBlock = $null
+    $packageArray = @()
+
+    # Dont process Packages that are the same(they get handled by Increment)
+    # If there are multiple Increments with the same Featurename found they will get handled and added here which makes it
+    # that we cannot process packages with the same name otherwise everything gets added twice. This is done by adding the featurecode to an excludeList
+
+    # it looks like there is no possibility to match a package to an increment. It's possible that they have the same featurecode (as an example multiple collections)
+    # but because they then have the same product in it anyway we can just process ALL found Increments
+    # this is what was changed
+    
+    forEach ($item in $PackageBlocks.Matches) {
         $PackageParts = $PackageBlocks.Matches[$pNr].Value.Split(" ")
 
         for ($t = 0; $t -lt $PackageParts.length; $t++) {
             $PackageParts[$t] = $PackageParts[$t] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""   #remove backslash ; remove apostrophe; remove all whitespace
         }
 
-        #create searchterm
-        $IdentificationNr = "*" + $PackageParts[1].ToString() + "*"
-
-        $t = 0
-        #search for matching increment (this is needed to get some info that is not present in package block, like seat number and expiration)
-        Foreach ($item in $IncrementsPackage) {
-            $MatchingIncrementBlock += $IncrementsPackage[$t] | Where-Object { $_ -like $IdentificationNr }
-            if ($MatchingIncrementBlock) {
-                break #if found stop search / saves time
-            }
-            else {
-                $t = $t + 1
-            }
-        }
-
-        $MatchingIncrementBlockParts = $MatchingIncrementBlock.Value.Split(" ")
-
-        for ($t = 0; $t -lt $MatchingIncrementBlockParts.length; $t++) {
-            $MatchingIncrementBlockParts[$t] = $MatchingIncrementBlockParts[$t] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""   #remove backslash ; remove apostrophe; remove all whitespace
-        }
-
-        #Seat Count
-        $varSeat = $MatchingIncrementBlockParts[5]
-        #Product Name (Feature)
-        $varFeature = $FeatureHashtableN.($MatchingIncrementBlockParts[1])
-        #FeatureCode
-        $varFeatureCode = $MatchingIncrementBlockParts[1]
-        #SerialNumber
-        $varSerialNumber = $MatchingIncrementBlockParts | Where-Object { $_ -like "*SN=*" }
-        $varSerialNumber = $varSerialNumber.SubString(3, $varSerialNumber.length - 3)
-        #Issue Date
-        $varIssueDate = $MatchingIncrementBlockParts | Where-Object { $_ -like "*ISSUED=*" }
-        $varIssueDate = $varIssueDate.Substring(7, $varIssueDate.Length - 7)
-        #Expiration Date
-        $varExpiration = $MatchingIncrementBlockParts | Select-String -pattern '^\d{2}[\-]\w{3}[\-]\d{4}'
-        If ($varExpiration -eq $null) {
-            $varExpiration = "Permanent" #If there is no regex pattern matching it goes to permanent
-        }
-
-        #===========================================================================
-        # Package Header
-        #===========================================================================
-        #Create Custom Object and add it to the grid
-        $PackageHeader = [pscustomobject]@{Seats = $varSeat; Feature = $varFeature; FeatureCode = $varFeatureCode; SerialNumber = $varSerialNumber; IssueDate = $varIssueDate; Expiration = $varExpiration; Main = "True"; groupNumber = $z ; Expanded = "True"; Lineindex = $Script:Lineindex }
-        $WPFDatagridPack.AddChild($PackageHeader)
-        $Script:Lineindex = $Script:Lineindex + 1
-
-        #===========================================================================
-        # Components Line (what belongs to the package)
-        #===========================================================================
-        $matches = ([regex]'\d{5}\w{3,8}_\d{4}_0F').Matches($PackageParts)
+        $packageItem = [pscustomobject]@{FeatureCode = $PackageParts[1]; Other = $PackageParts }
+        $packageArray += $packageItem
     
-        for ($i = 0; $i -lt $matches.count; $i++) {
-        
-            $ProductLine = $FeatureHashtableN.$($matches[$i].value)
-
-            $IncrementLine = [pscustomobject]@{Seats = " " ; Feature = $ProductLine; FeatureCode = $matches[$i].value; Main = "False"; groupNumber = $z; Lineindex = $Script:Lineindex } #Seat is set to " " so it triggers style template from xaml
-            $WPFDatagridPack.AddChild($IncrementLine)
-            $Script:Lineindex = $Script:Lineindex + 1  
-        }
-        
-        #next Package
-        $pNr = $pNr + 1
-        $global:z = $z + 1 #for referencing itemrow later (mainrow and secondrows have the same number)
+        $pNr++
     }
- 
 
+    # exclude List so every Featurecode gets processed one!
+    $excludeList = @()
+
+    foreach ($item in $packageArray) {
+        # only process if not already in the excludelist
+        if ($excludeList -notcontains $item.FeatureCode) {
+            $excludeList += $item.FeatureCode
+            Write-Host $item.FeatureCode
+
+            #create searchterm
+            $IdentificationNr = "*" + $item.FeatureCode.ToString() + "*"
+
+            $t = 0
+            #search for matching increment (this is needed to get some info that is not present in package block, like seat number and expiration)
+            $MatchingIncrementBlock = @()
+                
+            for ($t = 0; $t -lt $IncrementsPackage.length; $t++) {
+                $MatchingIncrementBlock += $IncrementsPackage[$t] | Where-Object { $_ -like $IdentificationNr }
+            }
+            for ($p = 0; $p -lt $MatchingIncrementBlock.length; $p++) {
+
+                $MatchingIncrementBlockParts = $MatchingIncrementBlock[$p].Value.Split(" ")
+        
+                for ($t = 0; $t -lt $MatchingIncrementBlockParts.length; $t++) {
+                    $MatchingIncrementBlockParts[$t] = $MatchingIncrementBlockParts[$t] -replace '[\\]+', '' -replace '"', "" -replace '\s', ""   #remove backslash ; remove apostrophe; remove all whitespace
+                }
+                    
+                #Seat Count
+                $varSeat = $MatchingIncrementBlockParts[5]
+                #Product Name (Feature)
+                $varFeature = $FeatureHashtableN.($MatchingIncrementBlockParts[1])
+                #FeatureCode
+                $varFeatureCode = $MatchingIncrementBlockParts[1]
+                #SerialNumber
+                $varSerialNumber = $MatchingIncrementBlockParts | Where-Object { $_ -like "*SN=*" }
+                $varSerialNumber = $varSerialNumber.SubString(3, $varSerialNumber.length - 3)
+                #Issue Date
+                $varIssueDate = $MatchingIncrementBlockParts | Where-Object { $_ -like "*ISSUED=*" }
+                $varIssueDate = $varIssueDate.Substring(7, $varIssueDate.Length - 7)
+                #Expiration Date
+                $varExpiration = $MatchingIncrementBlockParts | Select-String -pattern '^\d{2}[\-]\w{3}[\-]\d{4}'
+                If ($varExpiration -eq $null) {
+                    $varExpiration = "Permanent" #If there is no regex pattern matching it goes to permanent
+                }
+        
+                #===========================================================================
+                # Package Header
+                #===========================================================================
+                #Create Custom Object and add it to the grid
+                $PackageHeader = [pscustomobject]@{Seats = $varSeat; Feature = $varFeature; FeatureCode = $varFeatureCode; SerialNumber = $varSerialNumber; IssueDate = $varIssueDate; Expiration = $varExpiration; Main = "True"; groupNumber = $z ; Expanded = "True"; Lineindex = $Script:Lineindex }
+                $WPFDatagridPack.AddChild($PackageHeader)
+                $Script:Lineindex = $Script:Lineindex + 1
+        
+                #===========================================================================
+                # Components Line (what belongs to the package)
+                #===========================================================================
+                $matches = ([regex]'\d{5}\w{3,8}_\d{4}_0F').Matches($PackageParts)
+            
+                for ($i = 0; $i -lt $matches.count; $i++) {
+                
+                    $ProductLine = $FeatureHashtableN.$($matches[$i].value)
+        
+                    $IncrementLine = [pscustomobject]@{Seats = " " ; Feature = $ProductLine; FeatureCode = $matches[$i].value; Main = "False"; groupNumber = $z; Lineindex = $Script:Lineindex } #Seat is set to " " so it triggers style template from xaml
+                    $WPFDatagridPack.AddChild($IncrementLine)
+                    $Script:Lineindex = $Script:Lineindex + 1 
+                         
+                }
+                $global:z = $z + 1 #for referencing itemrow later (mainrow and secondrows have the same number)
+            }
+            #next Package
+            $pNr++
+        }
+    }
 }
-
 
 Function Fillout {
     If ($global:FileName -eq $null) {
